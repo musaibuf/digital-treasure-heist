@@ -84,7 +84,8 @@ function buildPieces() {
   const pieces = [];
   const used = new Set();
   for (let slot = 1; slot <= 20; slot++) {
-    const ownerIdx = (slot - 1) % 10;
+        const ownerIdx = (slot - 1) % 10;
+    const row = Math.floor((slot - 1) / 10); // 0 for slots 1-10, 1 for slots 11-20
     const rocket = isRocketSlot(slot);
     const value = rocket ? null : VALUES[cursor++];
     let code = randomCode();
@@ -93,8 +94,8 @@ function buildPieces() {
     pieces.push({
       slot,
       ownerIdx,
-      holderIdx: (ownerIdx + 3) % 10,
-      decoderIdx: (ownerIdx + 7) % 10,
+      holderIdx: (ownerIdx + 1 + row * 2) % 10,
+      decoderIdx: (ownerIdx + 2 + row * 2) % 10,
       rocket,
       icon: value ? value.icon : "Rocket",
       valueText: value ? value.text : null,
