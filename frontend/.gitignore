@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables (Never push secrets to GitHub)
+.env
+.env.local
+
+# Build files
+frontend/build/
+frontend/dist/
+.DS_Store
