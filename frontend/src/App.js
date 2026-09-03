@@ -6,8 +6,8 @@ import {
   Smile, Award, Compass, Mountain, Gift, MessageCircle, Trophy, Layers,
   Sparkles, Rocket, Lock, Radio, Inbox, BookOpen, Clock, Hash, KeyRound,
   MapPin, Wifi, WifiOff, Zap, Puzzle, RotateCcw, FastForward, AlertTriangle,
+  Sun, Moon, Sunrise, Orbit, Telescope, Satellite, Radar, Atom, Globe, Aperture,
 } from "lucide-react";
-
 /* ============================================================
    PALETTE + CONFIG
    Chrome uses the orange ramp. Team colours are darkened so
@@ -27,17 +27,18 @@ const BRAND = {
 };
 
 const TEAMS = [
-  { name: "Aldebaran", colour: "#C2410C", gem: "Carnelian" },
-  { name: "Vega", colour: "#1D4ED8", gem: "Sapphire" },
-  { name: "Altair", colour: "#047857", gem: "Emerald" },
-  { name: "Deneb", colour: "#6D28D9", gem: "Amethyst" },
-  { name: "Rigel", colour: "#B45309", gem: "Topaz" },
-  { name: "Antares", colour: "#9F1239", gem: "Ruby" },
-  { name: "Mizar", colour: "#0E7490", gem: "Aquamarine" },
-  { name: "Fomalhaut", colour: "#8A6D00", gem: "Citrine" },
-  { name: "Alnilam", colour: "#BE185D", gem: "Rose Quartz" },
-  { name: "Algol", colour: "#3730A3", gem: "Lapis" },
+  { name: "Aldebaran", colour: "#C2410C", gem: "Carnelian", Icon: Sun },
+  { name: "Vega", colour: "#1D4ED8", gem: "Sapphire", Icon: Moon },
+  { name: "Altair", colour: "#047857", gem: "Emerald", Icon: Sunrise },
+  { name: "Deneb", colour: "#6D28D9", gem: "Amethyst", Icon: Orbit },
+  { name: "Rigel", colour: "#B45309", gem: "Topaz", Icon: Telescope },
+  { name: "Antares", colour: "#9F1239", gem: "Ruby", Icon: Satellite },
+  { name: "Mizar", colour: "#0E7490", gem: "Aquamarine", Icon: Radar },
+  { name: "Fomalhaut", colour: "#8A6D00", gem: "Citrine", Icon: Atom },
+  { name: "Alnilam", colour: "#BE185D", gem: "Rose Quartz", Icon: Globe },
+  { name: "Algol", colour: "#3730A3", gem: "Lapis", Icon: Aperture },
 ].map((t, i) => ({ ...t, id: i, tableNumber: i + 1 }));
+
 
 const ICONS = {
   Shield, Star, Users, Lightbulb, Heart, CheckCircle2, Flame, TrendingUp,
@@ -602,13 +603,22 @@ function ProgressRing({ value, max, colour, size = 34 }) {
    JOIN
    ============================================================ */
 
+   function BrandMark({ size = 16 }) {
+  return (
+    <img
+      src={process.env.PUBLIC_URL + "/logo.png"}
+      alt="Carnelian"
+      className="brand-logo"
+      style={{ height: size }}
+    />
+  );
+}
+
 function JoinScreen({ onPick }) {
   return (
     <div className="screen join-screen">
       <div className="join-head anim-rise">
-        <span className="eyebrow">
-          <Puzzle size={13} /> Carnelian
-        </span>
+                <BrandMark size={26} />
         <h1 className="brand-title">Cross-Team Jigsaw</h1>
         <p className="brand-sub">Choose your constellation to begin</p>
       </div>
@@ -621,8 +631,8 @@ function JoinScreen({ onPick }) {
             style={{ "--tc": t.colour, animationDelay: i * 55 + "ms" }}
             onClick={() => onPick(t.id)}
           >
-            <span className="tab-chip">
-              <Puzzle size={18} />
+                        <span className="tab-chip">
+              <t.Icon size={19} />
             </span>
             <span className="team-pick-name">{t.name}</span>
             <span className="team-pick-meta">
@@ -883,8 +893,8 @@ function ParticipantApp({ teamIdx, state, submitPiece, onLeave }) {
     <div className="screen participant-screen" style={{ "--tc": team.colour }}>
       <header className="p-header">
         <button className="p-identity" onClick={onLeave} title="Change team">
-          <span className="tab-chip sm">
-            <Puzzle size={15} />
+                    <span className="tab-chip sm">
+            <team.Icon size={16} />
           </span>
           <span>
             <span className="p-team">{team.name}</span>
@@ -1102,9 +1112,7 @@ function ProjectorApp({ state }) {
 
       <header className="proj-header">
         <div className="proj-brand">
-          <span className="eyebrow">
-            <Puzzle size={12} /> Carnelian
-          </span>
+                    <BrandMark size={22} />
           <h1 className="brand-title small">Cross-Team Jigsaw</h1>
         </div>
         <div className="proj-status">
@@ -1157,9 +1165,7 @@ function FacilitatorApp({ state, startSession, resetSession, forceAct2, giveHint
     <div className="screen facilitator-screen">
       <header className="fac-header">
         <div>
-          <span className="eyebrow">
-            <Puzzle size={12} /> Carnelian
-          </span>
+                    <BrandMark size={20} />
           <h1 className="brand-title small">Facilitator console</h1>
         </div>
         <RoomClock
@@ -1204,8 +1210,8 @@ function FacilitatorApp({ state, startSession, resetSession, forceAct2, giveHint
           return (
             <div key={t.id} className="fac-card" style={{ "--tc": t.colour }}>
               <div className="fac-card-head">
-                <span className="tab-chip sm">
-                  <Puzzle size={14} />
+                                <span className="tab-chip sm">
+                  <t.Icon size={15} />
                 </span>
                 <div>
                   <h3>{t.name}</h3>
@@ -1398,8 +1404,11 @@ function GlobalStyles() {
         font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
         color: var(--rust); font-weight: 700;
       }
+              .brand-logo { display: block; width: auto; margin: 0 auto 10px; }
+      .proj-brand .brand-logo, .fac-header .brand-logo { margin: 0 0 8px; }
       .brand-title {
-        font-size: clamp(30px, 5.6vw, 58px); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em;
+        font-size: clamp(30px, 5.6vw, 58px); font-weight: 800; line-height: 1.16; letter-spacing: -0.02em;
+        padding-bottom: 0.06em;
         background: linear-gradient(100deg, var(--umber) 0%, var(--rust) 34%, var(--orange) 62%, var(--umber) 100%);
         background-size: 200% auto;
         -webkit-background-clip: text; background-clip: text; color: transparent;
