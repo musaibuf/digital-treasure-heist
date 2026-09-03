@@ -618,7 +618,7 @@ function JoinScreen({ onPick }) {
   return (
     <div className="screen join-screen">
       <div className="join-head anim-rise">
-                <BrandMark size={26} />
+                <BrandMark size={64} />
         <h1 className="brand-title">Cross-Team Jigsaw</h1>
         <p className="brand-sub">Choose your constellation to begin</p>
       </div>
@@ -1404,7 +1404,7 @@ function GlobalStyles() {
         font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
         color: var(--rust); font-weight: 700;
       }
-              .brand-logo { display: block; width: auto; margin: 0 auto 10px; }
+                .brand-logo { display: block; width: auto; max-width: 260px; margin: 0 auto 18px; }
       .proj-brand .brand-logo, .fac-header .brand-logo { margin: 0 0 8px; }
       .brand-title {
         font-size: clamp(30px, 5.6vw, 58px); font-weight: 800; line-height: 1.16; letter-spacing: -0.02em;
