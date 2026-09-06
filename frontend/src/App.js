@@ -127,7 +127,7 @@ const TOAST_COPY = {
   "team-taken": { text: "This team has already been claimed on another device.", tone: "bad" },
   "already-past": { text: "Your team has already moved on from this step.", tone: "warn" },
   invalid: { text: "Something went wrong. Try again.", tone: "bad" },
-  reset: { text: "Your team was reset by the facilitator. Pick your team again.", tone: "warn" },
+  reset: { text: "Your session was reset. Pick your team again.", tone: "warn" },
 };
 
 function Toast({ toast, onClear }) {
@@ -442,25 +442,28 @@ function ParticipantApp() {
     dispatch({ type: "CLAIM_TEAM", teamNumber: n, deviceToken });
   };
 
-  // A team goes back to "idle" in exactly two situations: this device hasn't
-  // claimed it yet (normal, not a logout), or the facilitator reset it after
-  // this device was already active (a real logout - back to the picker).
+  // A team reads "idle" only when this device is not actually in the game:
+  // either the facilitator reset it, or a claim never landed. Either way the
+  // honest thing is to send them back to the picker rather than spin forever.
+  // The `joining` guard covers the brief gap between tapping a team and the
+  // server confirming the claim.
   useEffect(() => {
-    if (!teamNumber || !connected || !state || !state.team) return;
+    if (!teamNumber || !connected || !state || !state.team || joining) return;
 
     if (state.team.phase !== "idle") {
       wasActiveRef.current = true;
       return;
     }
 
-    if (wasActiveRef.current) {
-      wasActiveRef.current = false;
-      localStorage.removeItem("heist-team");
-      setTeamNumber(null);
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = false;
+    localStorage.removeItem("heist-team");
+    setTeamNumber(null);
+    if (wasActive) {
       toastId.current += 1;
       setToast({ kind: "reset", id: toastId.current });
     }
-  }, [teamNumber, connected, state]);
+  }, [teamNumber, connected, state, joining]);
 
   let body;
   if (!teamNumber) {
@@ -468,7 +471,7 @@ function ParticipantApp() {
   } else if (!state || !state.team) {
     body = (
       <div className="screen join-screen">
-        <div className="card anim-rise" style={{ textAlign: "center" }}>
+        <div className="card connect-card anim-rise">
           <p>Connecting to Team {teamNumber}...</p>
         </div>
       </div>
@@ -498,10 +501,12 @@ function ParticipantApp() {
     } else if (team.phase === "complete") {
       body = <CompleteScreen teamNumber={teamNumber} completedAt={team.completedAt} joinedAt={team.joinedAt} />;
     } else {
+      // phase is "idle" - the effect above is already sending this device back
+      // to the picker, so this only ever flashes for a frame
       body = (
         <div className="screen join-screen">
-          <div className="card anim-rise" style={{ textAlign: "center" }}>
-            <p>Waiting for the facilitator...</p>
+          <div className="card connect-card anim-rise">
+            <p>Connecting...</p>
           </div>
         </div>
       );
@@ -753,6 +758,8 @@ function GlobalStyles() {
       .complete-card svg { color: var(--red); }
       .complete-card h2 { font-size: 26px; }
       .complete-card p { color: var(--muted); margin: 0; }
+      .connect-card { padding: 28px 34px; text-align: center; }
+      .connect-card p { margin: 0; color: var(--muted); font-weight: 600; }
 
       .toast {
         position: fixed; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);

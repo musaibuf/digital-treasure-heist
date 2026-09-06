@@ -263,15 +263,29 @@ io.on("connection", (socket) => {
 
   socket.on("action", (action = {}) => {
     try {
-      // a participant socket can only ever act as the team it identified as
       let safeAction = action;
-      if (socket.data.role === "participant" && action.type !== "RESET_ALL" && action.type !== "RESET_TEAM") {
+
+      // A claim carries its own team number - the socket may not have been
+      // re-identified yet at this point, so trusting socket.data here would
+      // overwrite the picked team with null and fail the claim.
+      if (action.type === "CLAIM_TEAM") {
+        const teamNumber = Number(action.teamNumber);
+        const deviceToken = action.deviceToken || socket.data.deviceToken;
+        safeAction = { ...action, teamNumber, deviceToken };
+        socket.data = { ...socket.data, teamNumber, deviceToken };
+      } else if (
+        socket.data.role === "participant" &&
+        action.type !== "RESET_ALL" &&
+        action.type !== "RESET_TEAM"
+      ) {
+        // every other participant action is pinned to the identified team
         safeAction = {
           ...action,
           teamNumber: socket.data.teamNumber,
           deviceToken: socket.data.deviceToken,
         };
       }
+
       // only the dashboard may reset
       if (
         (action.type === "RESET_TEAM" || action.type === "RESET_ALL") &&
@@ -285,6 +299,7 @@ io.on("connection", (socket) => {
       state = next;
       if (result) socket.emit("action:result", result);
       if (changed) broadcast();
+      else sendTo(socket);
     } catch (err) {
       console.error("Bad action", action, err);
     }
