@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import confetti from "canvas-confetti";
 import {
   Lock, Wifi, WifiOff, AlertTriangle, CheckCircle2, RotateCcw, Clock,
-  Delete, ArrowRight, Trophy, KeyRound, Hash, Users, Shield,
+  ArrowRight, Trophy, Users,
 } from "lucide-react";
 
 /* ============================================================
@@ -32,10 +32,9 @@ function getOrCreateDeviceToken() {
 
 /* ============================================================
    SHARED STATE HOOK
-   Socket.io backend when REACT_APP_SERVER_URL is set.
-   Otherwise runs entirely from server pushes - there is no
-   local reducer here because unlike the jigsaw, each team is a
-   single device and the backend is the only source of truth.
+   Socket.io backend when REACT_APP_SERVER_URL is set. Each team
+   is a single device, so the backend is the only source of
+   truth - there is no local reducer here.
    ============================================================ */
 
 function useHeist({ role, teamNumber, deviceToken, onResult }) {
@@ -142,7 +141,7 @@ function Toast({ toast, onClear }) {
 
   return (
     <div key={toast.id} className={"toast toast-" + copy.tone}>
-      {copy.tone === "bad" ? <AlertTriangle size={16} /> : copy.tone === "warn" ? <Lock size={16} /> : <CheckCircle2 size={16} />}
+      {copy.tone === "bad" ? <AlertTriangle size={20} /> : copy.tone === "warn" ? <Lock size={20} /> : <CheckCircle2 size={20} />}
       <span>{copy.text}</span>
     </div>
   );
@@ -171,11 +170,35 @@ function RoomClock({ startedAt }) {
 }
 
 /* ============================================================
-   TOP BAR (shared by dashboard)
+   RESET ALL - shared button, used in the top bar and again in
+   the summary row so it is never easy to miss
+   ============================================================ */
+
+function ResetAllButton({ onResetAll, className }) {
+  const [confirmReset, setConfirmReset] = useState(false);
+  return (
+    <button
+      className={"reset-all-btn " + (confirmReset ? "danger " : "") + (className || "")}
+      onClick={() => {
+        if (confirmReset) {
+          onResetAll();
+          setConfirmReset(false);
+        } else {
+          setConfirmReset(true);
+          setTimeout(() => setConfirmReset(false), 4000);
+        }
+      }}
+    >
+      <RotateCcw size={14} /> {confirmReset ? "Tap again to confirm" : "Reset all teams"}
+    </button>
+  );
+}
+
+/* ============================================================
+   TOP BAR (dashboard)
    ============================================================ */
 
 function TopBar({ connected, startedAt, onResetAll }) {
-  const [confirmReset, setConfirmReset] = useState(false);
   return (
     <header className="top-bar">
       <div className="top-bar-brand">
@@ -185,20 +208,7 @@ function TopBar({ connected, startedAt, onResetAll }) {
       <div className="top-bar-right">
         <RoomClock startedAt={startedAt} />
         <ConnectionBadge connected={connected} />
-        <button
-          className={"reset-all-btn " + (confirmReset ? "danger" : "")}
-          onClick={() => {
-            if (confirmReset) {
-              onResetAll();
-              setConfirmReset(false);
-            } else {
-              setConfirmReset(true);
-              setTimeout(() => setConfirmReset(false), 4000);
-            }
-          }}
-        >
-          <RotateCcw size={14} /> {confirmReset ? "Tap again to confirm" : "Reset all teams"}
-        </button>
+        <ResetAllButton onResetAll={onResetAll} />
       </div>
     </header>
   );
@@ -422,6 +432,21 @@ function ParticipantApp() {
     dispatch({ type: "CLAIM_TEAM", teamNumber: n, deviceToken });
   };
 
+  // If a saved team comes back from the server as "idle" - most often because
+  // the backend restarted and lost the claim - re-send the claim automatically
+  // instead of leaving the phone stuck on "waiting for the facilitator".
+  const autoClaimedRef = useRef(false);
+  useEffect(() => {
+    if (!teamNumber || !connected || !state) return;
+    if (state.team && state.team.phase === "idle" && !autoClaimedRef.current) {
+      autoClaimedRef.current = true;
+      dispatch({ type: "CLAIM_TEAM", teamNumber, deviceToken });
+    }
+    if (state.team && state.team.phase !== "idle") {
+      autoClaimedRef.current = false;
+    }
+  }, [teamNumber, connected, state, deviceToken, dispatch]);
+
   let body;
   if (!teamNumber) {
     body = <JoinScreen onJoin={joinTeam} joining={joining} />;
@@ -532,23 +557,56 @@ function TeamCard({ team, onReset }) {
   );
 }
 
+function TeamProgressChart({ teams }) {
+  const totalSteps = TOTAL_QUESTIONS + 1; // 4 digits + cipher
+  return (
+    <div className="card progress-chart">
+      <h3 className="chart-title">Team progress</h3>
+      <div className="chart-rows">
+        {teams.map((t) => {
+          const steps =
+            t.phase === "complete" ? totalSteps : t.phase === "cipher" ? TOTAL_QUESTIONS : t.digitIndex;
+          const pct = Math.round((steps / totalSteps) * 100);
+          return (
+            <div key={t.number} className="chart-row">
+              <span className="chart-label">T{t.number}</span>
+              <div className="chart-track">
+                <div className={"chart-fill " + (t.phase === "complete" ? "complete" : "")} style={{ width: pct + "%" }} />
+              </div>
+              <span className="chart-value">{steps}/{totalSteps}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DashboardApp() {
   const { state, connected, dispatch } = useHeist({ role: "dashboard", teamNumber: null, deviceToken: null });
-  const teams = state ? state.teams : TEAM_NUMBERS.map((n) => ({ number: n, claimed: false, phase: "idle", digitIndex: 0, joinedAt: null, completedAt: null }));
+  const teams =
+    state && Array.isArray(state.teams)
+      ? state.teams
+      : TEAM_NUMBERS.map((n) => ({ number: n, claimed: false, phase: "idle", digitIndex: 0, joinedAt: null, completedAt: null }));
 
   const firstJoin = teams.reduce((min, t) => (t.joinedAt && (!min || t.joinedAt < min) ? t.joinedAt : min), null);
   const claimedCount = teams.filter((t) => t.claimed).length;
   const completeCount = teams.filter((t) => t.phase === "complete").length;
 
+  const resetAll = () => dispatch({ type: "RESET_ALL" });
+
   return (
     <div className="app-root dashboard-root">
       <GlowBackdrop />
-      <TopBar connected={connected} startedAt={firstJoin} onResetAll={() => dispatch({ type: "RESET_ALL" })} />
+      <TopBar connected={connected} startedAt={firstJoin} onResetAll={resetAll} />
 
       <div className="dash-summary">
         <div className="summary-chip"><Users size={15} /> {claimedCount}/10 joined</div>
         <div className="summary-chip"><Trophy size={15} /> {completeCount}/10 complete</div>
+        <ResetAllButton onResetAll={resetAll} className="summary-reset" />
       </div>
+
+      <TeamProgressChart teams={teams} />
 
       <div className="dash-grid">
         {teams.map((t) => (
@@ -602,7 +660,7 @@ function GlobalStyles() {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
         overflow-x: hidden;
       }
-      h1, h2 { font-family: 'Fraunces', Georgia, serif; margin: 0; }
+      h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; margin: 0; }
 
       .app-root { position: relative; min-height: 100vh; min-height: 100dvh; width: 100%; }
       .screen { position: relative; z-index: 2; }
@@ -679,11 +737,12 @@ function GlobalStyles() {
 
       .toast {
         position: fixed; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
-        z-index: 200; display: flex; align-items: center; gap: 9px; text-align: left;
-        padding: 13px 17px; border-radius: 14px; font-size: 13.5px; font-weight: 600;
-        max-width: min(460px, 92vw);
-        box-shadow: 0 18px 40px -20px rgba(0,0,0,0.3);
+        z-index: 200; display: flex; align-items: center; gap: 11px; text-align: left;
+        padding: 18px 24px; border-radius: 16px; font-size: 15.5px; font-weight: 600; line-height: 1.4;
+        min-width: 280px; max-width: min(520px, 92vw);
+        box-shadow: 0 20px 46px -20px rgba(0,0,0,0.32);
       }
+      .toast svg { flex: 0 0 auto; width: 20px; height: 20px; }
       .toast-good { background: #E7F6ED; border: 1px solid rgba(21,128,61,0.4); color: #14532D; }
       .toast-bad { background: var(--red-tint); border: 1px solid rgba(225,29,46,0.4); color: var(--red-deep); }
       .toast-warn { background: #FEF3E2; border: 1px solid rgba(180,83,9,0.4); color: var(--warn); }
@@ -744,15 +803,26 @@ function GlobalStyles() {
         color: var(--red-deep); font-family: inherit; font-size: 12.5px; font-weight: 700;
       }
       .reset-all-btn.danger { background: var(--red); color: #fff; }
+      .summary-reset { margin-left: auto; }
 
       /* ---------- Dashboard grid ---------- */
       .dashboard-root { padding-bottom: 40px; }
-      .dash-summary { display: flex; gap: 10px; padding: 16px 22px 0; }
+      .dash-summary { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 22px 0; }
       .summary-chip {
         display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px;
         background: var(--white); border: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: var(--ink);
       }
       .summary-chip svg { color: var(--red); }
+
+      .progress-chart { margin: 18px 22px 0; padding: 18px 20px; position: relative; z-index: 2; }
+      .chart-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--ink); }
+      .chart-rows { display: flex; flex-direction: column; gap: 10px; }
+      .chart-row { display: flex; align-items: center; gap: 10px; }
+      .chart-label { width: 34px; flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--muted); }
+      .chart-track { flex: 1; height: 14px; border-radius: 999px; background: var(--off-white); border: 1px solid var(--line); overflow: hidden; }
+      .chart-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--red), var(--red-deep)); transition: width .6s ease; }
+      .chart-fill.complete { background: linear-gradient(90deg, var(--good), #0d5c2c); }
+      .chart-value { width: 34px; flex: 0 0 auto; text-align: right; font-size: 11.5px; font-weight: 700; color: var(--muted); }
 
       .dash-grid {
         position: relative; z-index: 2;
@@ -788,6 +858,8 @@ function GlobalStyles() {
         .team-grid { grid-template-columns: repeat(4, 1fr); }
         .keypad-row { grid-template-columns: repeat(4, 1fr); }
         .top-bar { flex-direction: column; align-items: flex-start; }
+        .dash-summary { flex-wrap: wrap; }
+        .summary-reset { margin-left: 0; }
       }
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
