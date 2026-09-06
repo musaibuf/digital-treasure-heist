@@ -109,9 +109,9 @@ function BrandMark({ size = 22 }) {
   );
 }
 
-function ConnectionBadge({ connected }) {
+function ConnectionBadge({ connected, floating = true }) {
   return (
-    <div className={"conn-badge " + (connected ? "ok" : "bad")}>
+    <div className={"conn-badge " + (connected ? "ok" : "bad") + (floating ? " floating" : "")}>
       {connected ? <Wifi size={13} /> : <WifiOff size={13} />}
       <span>{connected ? "Live" : "Connecting"}</span>
     </div>
@@ -196,6 +196,8 @@ function ResetAllButton({ onResetAll, className }) {
 
 /* ============================================================
    TOP BAR (dashboard)
+   The connection badge lives here, not as the fixed floating
+   one, so nothing else can overlap it.
    ============================================================ */
 
 function TopBar({ connected, startedAt, onResetAll }) {
@@ -207,7 +209,7 @@ function TopBar({ connected, startedAt, onResetAll }) {
       </div>
       <div className="top-bar-right">
         <RoomClock startedAt={startedAt} />
-        <ConnectionBadge connected={connected} />
+        <ConnectionBadge connected={connected} floating={false} />
         <ResetAllButton onResetAll={onResetAll} />
       </div>
     </header>
@@ -432,17 +434,19 @@ function ParticipantApp() {
     dispatch({ type: "CLAIM_TEAM", teamNumber: n, deviceToken });
   };
 
-  // If a saved team comes back from the server as "idle" - most often because
-  // the backend restarted and lost the claim - re-send the claim automatically
-  // instead of leaving the phone stuck on "waiting for the facilitator".
+  // If a saved team comes back "idle" - either the backend restarted, or the
+  // facilitator hit reset on the dashboard - re-send the claim automatically.
+  // Same device token, same team, so the server accepts it silently and this
+  // phone never sees the team picker again; it just continues from digit 1.
   const autoClaimedRef = useRef(false);
   useEffect(() => {
     if (!teamNumber || !connected || !state) return;
-    if (state.team && state.team.phase === "idle" && !autoClaimedRef.current) {
-      autoClaimedRef.current = true;
-      dispatch({ type: "CLAIM_TEAM", teamNumber, deviceToken });
-    }
-    if (state.team && state.team.phase !== "idle") {
+    if (state.team && state.team.phase === "idle") {
+      if (!autoClaimedRef.current) {
+        autoClaimedRef.current = true;
+        dispatch({ type: "CLAIM_TEAM", teamNumber, deviceToken });
+      }
+    } else {
       autoClaimedRef.current = false;
     }
   }, [teamNumber, connected, state, deviceToken, dispatch]);
@@ -679,14 +683,18 @@ function GlobalStyles() {
       .brand-sub { color: var(--muted); margin: 0; font-size: 14.5px; }
 
       .conn-badge {
-        position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 60;
         display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
         background: #fff; border: 1px solid var(--line);
         padding: 5px 11px; border-radius: 999px; color: var(--muted);
         box-shadow: 0 6px 18px -12px rgba(0,0,0,0.2);
       }
+      .conn-badge.floating { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; z-index: 60; }
       .conn-badge.ok svg { color: var(--good); }
       .conn-badge.bad svg { color: var(--bad); }
+      /* the top bar carries its own non-floating badge on the dashboard, so
+         the fixed one is redundant there and would otherwise sit on top of
+         whatever the bar places in that corner */
+      .dashboard-root > .conn-badge.floating { display: none; }
 
       .card {
         background: var(--white); border: 1px solid var(--line); border-radius: 20px;
@@ -792,6 +800,7 @@ function GlobalStyles() {
         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
         padding: 14px 22px; background: var(--white); border-bottom: 1px solid var(--line);
         position: sticky; top: 0; z-index: 40;
+        box-shadow: 0 1px 0 var(--red), 0 8px 24px -6px rgba(225,29,46,0.4);
       }
       .top-bar-brand { display: flex; align-items: center; gap: 10px; }
       .top-bar-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 18px; }
