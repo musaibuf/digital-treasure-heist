@@ -127,6 +127,7 @@ const TOAST_COPY = {
   "team-taken": { text: "This team has already been claimed on another device.", tone: "bad" },
   "already-past": { text: "Your team has already moved on from this step.", tone: "warn" },
   invalid: { text: "Something went wrong. Try again.", tone: "bad" },
+  reset: { text: "Your team was reset by the facilitator. Pick your team again.", tone: "warn" },
 };
 
 function Toast({ toast, onClear }) {
@@ -409,9 +410,16 @@ function ParticipantApp() {
   const [toast, setToast] = useState(null);
   const toastId = useRef(0);
 
+  // True once this device has actually seen its team past "idle" - either by
+  // claiming it successfully or by reconnecting into an in-progress team.
+  // Used below to tell "just picked a team, claim hasn't landed yet" (idle,
+  // but not a logout) apart from "was active, then went idle" (a reset).
+  const wasActiveRef = useRef(false);
+
   const handleResult = useCallback((res) => {
     setJoining(false);
     if (!res) return;
+    if (res.kind === "joined") wasActiveRef.current = true;
     if (res.kind === "team-taken") {
       localStorage.removeItem("heist-team");
       setTeamNumber(null);
@@ -434,22 +442,25 @@ function ParticipantApp() {
     dispatch({ type: "CLAIM_TEAM", teamNumber: n, deviceToken });
   };
 
-  // If a saved team comes back "idle" - either the backend restarted, or the
-  // facilitator hit reset on the dashboard - re-send the claim automatically.
-  // Same device token, same team, so the server accepts it silently and this
-  // phone never sees the team picker again; it just continues from digit 1.
-  const autoClaimedRef = useRef(false);
+  // A team goes back to "idle" in exactly two situations: this device hasn't
+  // claimed it yet (normal, not a logout), or the facilitator reset it after
+  // this device was already active (a real logout - back to the picker).
   useEffect(() => {
-    if (!teamNumber || !connected || !state) return;
-    if (state.team && state.team.phase === "idle") {
-      if (!autoClaimedRef.current) {
-        autoClaimedRef.current = true;
-        dispatch({ type: "CLAIM_TEAM", teamNumber, deviceToken });
-      }
-    } else {
-      autoClaimedRef.current = false;
+    if (!teamNumber || !connected || !state || !state.team) return;
+
+    if (state.team.phase !== "idle") {
+      wasActiveRef.current = true;
+      return;
     }
-  }, [teamNumber, connected, state, deviceToken, dispatch]);
+
+    if (wasActiveRef.current) {
+      wasActiveRef.current = false;
+      localStorage.removeItem("heist-team");
+      setTeamNumber(null);
+      toastId.current += 1;
+      setToast({ kind: "reset", id: toastId.current });
+    }
+  }, [teamNumber, connected, state]);
 
   let body;
   if (!teamNumber) {
