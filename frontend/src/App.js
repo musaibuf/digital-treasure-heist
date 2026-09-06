@@ -201,7 +201,7 @@ function ResetAllButton({ onResetAll, className }) {
    one, so nothing else can overlap it.
    ============================================================ */
 
-function TopBar({ connected, startedAt, onResetAll }) {
+function TopBar({ connected, startedAt }) {
   return (
     <header className="top-bar">
       <div className="top-bar-brand">
@@ -211,7 +211,7 @@ function TopBar({ connected, startedAt, onResetAll }) {
       <div className="top-bar-right">
         <RoomClock startedAt={startedAt} />
         <ConnectionBadge connected={connected} floating={false} />
-        <ResetAllButton onResetAll={onResetAll} />
+        <span className="tagline">Convey Meaning. Create Significance.</span>
       </div>
     </header>
   );
@@ -618,7 +618,7 @@ function DashboardApp() {
   return (
     <div className="app-root dashboard-root">
       <GlowBackdrop />
-      <TopBar connected={connected} startedAt={firstJoin} onResetAll={resetAll} />
+      <TopBar connected={connected} startedAt={firstJoin} />
 
       <div className="dash-summary">
         <div className="summary-chip"><Users size={15} /> {claimedCount}/10 joined</div>
@@ -831,6 +831,10 @@ function GlobalStyles() {
       }
       .reset-all-btn.danger { background: var(--red); color: #fff; }
       .summary-reset { margin-left: auto; }
+      .tagline {
+        font-family: 'Fraunces', serif; font-style: italic; font-weight: 600;
+        font-size: 14px; color: var(--red-deep); letter-spacing: 0.01em; white-space: nowrap;
+      }
 
       /* ---------- Dashboard grid ---------- */
       .dashboard-root { padding-bottom: 40px; }
@@ -885,6 +889,7 @@ function GlobalStyles() {
         .team-grid { grid-template-columns: repeat(4, 1fr); }
         .keypad-row { grid-template-columns: repeat(4, 1fr); }
         .top-bar { flex-direction: column; align-items: flex-start; }
+        .tagline { font-size: 12.5px; white-space: normal; }
         .dash-summary { flex-wrap: wrap; }
         .summary-reset { margin-left: 0; }
       }
