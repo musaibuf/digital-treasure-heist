@@ -286,7 +286,7 @@ function DigitScreen({ teamState, prompts, cooldownRemaining, onSubmit }) {
       </div>
 
       <div className="card question-card anim-rise" key={idx}>
-        <span className="q-index">Question {idx + 1} of {total}</span>
+        <span className="q-index">QR {idx + 1} of {total}</span>
         <h2 className="q-prompt">{prompt}</h2>
 
         <input
